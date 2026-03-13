@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
         produced_quantity,
         rejected_quantity: rejected_quantity ?? 0,
         observations: observations ?? null,
-        created_by: user.id,
+        entered_by: user.id,
       })
       .select()
       .single()

@@ -48,7 +48,7 @@ export default function LoginPage() {
     }
     setLoading(true)
     const supabase = createClient()
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -56,11 +56,21 @@ export default function LoginPage() {
       },
     })
     if (error) {
-      toast.error(error.message)
+      if (error.status === 500) {
+        toast.error('Erreur serveur Supabase. Vérifiez que la migration SQL a été exécutée et que la confirmation email est désactivée dans Supabase Auth.')
+      } else if (error.message.includes('already registered')) {
+        toast.error('Cet email est déjà utilisé. Connectez-vous ou utilisez un autre email.')
+      } else {
+        toast.error(error.message)
+      }
       setLoading(false)
       return
     }
-    toast.success('Compte créé ! Vous pouvez vous connecter.')
+    if (data.user && !data.session) {
+      toast.success('Vérifiez votre email pour confirmer votre compte.')
+    } else {
+      toast.success('Compte créé avec succès ! Vous pouvez vous connecter.')
+    }
     setMode('login')
     setPassword('')
     setLoading(false)

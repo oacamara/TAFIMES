@@ -8,6 +8,7 @@ import {
   Factory,
   BarChart3,
   Settings,
+  BookOpen,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -20,6 +21,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Ordres de Production', href: '/orders', icon: ClipboardList },
+  { label: 'Recettes', href: '/recipes', icon: BookOpen },
   { label: 'Allocation Matières', href: '/allocations', icon: Package },
   { label: 'Saisie Production', href: '/production', icon: Factory },
   { label: 'Rapports', href: '/reports', icon: BarChart3 },

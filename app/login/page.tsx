@@ -6,8 +6,12 @@ import toast from 'react-hot-toast'
 import { createClient } from '@/lib/supabase/client'
 import { Factory, Eye, EyeOff } from 'lucide-react'
 
+type Mode = 'login' | 'register'
+
 export default function LoginPage() {
   const router = useRouter()
+  const [mode, setMode] = useState<Mode>('login')
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -19,9 +23,11 @@ export default function LoginPage() {
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
-      toast.error(error.message === 'Invalid login credentials'
-        ? 'Email ou mot de passe incorrect'
-        : error.message)
+      toast.error(
+        error.message === 'Invalid login credentials'
+          ? 'Email ou mot de passe incorrect'
+          : error.message
+      )
       setLoading(false)
       return
     }
@@ -29,6 +35,38 @@ export default function LoginPage() {
     router.push('/dashboard')
     router.refresh()
   }
+
+  async function handleRegister(e: React.FormEvent) {
+    e.preventDefault()
+    if (!name.trim()) {
+      toast.error('Veuillez saisir votre nom')
+      return
+    }
+    if (password.length < 6) {
+      toast.error('Le mot de passe doit contenir au moins 6 caractères')
+      return
+    }
+    setLoading(true)
+    const supabase = createClient()
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name },
+      },
+    })
+    if (error) {
+      toast.error(error.message)
+      setLoading(false)
+      return
+    }
+    toast.success('Compte créé ! Vous pouvez vous connecter.')
+    setMode('login')
+    setPassword('')
+    setLoading(false)
+  }
+
+  const isLogin = mode === 'login'
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-900 via-amber-800 to-yellow-700 flex items-center justify-center p-4">
@@ -44,13 +82,55 @@ export default function LoginPage() {
           <p className="text-amber-100 text-sm mt-1">Gestion de Production Agroalimentaire</p>
         </div>
 
+        {/* Tab switcher */}
+        <div className="flex border-b border-gray-200">
+          <button
+            onClick={() => setMode('login')}
+            className={`flex-1 py-3 text-sm font-medium transition-colors ${
+              isLogin
+                ? 'text-amber-800 border-b-2 border-amber-700'
+                : 'text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            Se connecter
+          </button>
+          <button
+            onClick={() => setMode('register')}
+            className={`flex-1 py-3 text-sm font-medium transition-colors ${
+              !isLogin
+                ? 'text-amber-800 border-b-2 border-amber-700'
+                : 'text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            Créer un compte
+          </button>
+        </div>
+
         {/* Form */}
         <div className="px-8 py-8">
-          <h2 className="text-lg font-semibold text-gray-800 mb-6">Connexion</h2>
-          <form onSubmit={handleLogin} className="space-y-5">
+          <form onSubmit={isLogin ? handleLogin : handleRegister} className="space-y-5">
+
+            {/* Name field (register only) */}
+            {!isLogin && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nom complet <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required={!isLogin}
+                  placeholder="Jean Dupont"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
+                />
+              </div>
+            )}
+
+            {/* Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Adresse email
+                Adresse email <span className="text-red-500">*</span>
               </label>
               <input
                 type="email"
@@ -62,9 +142,11 @@ export default function LoginPage() {
               />
             </div>
 
+            {/* Password */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Mot de passe
+                Mot de passe <span className="text-red-500">*</span>
+                {!isLogin && <span className="text-gray-400 font-normal ml-1">(min. 6 caractères)</span>}
               </label>
               <div className="relative">
                 <input
@@ -93,13 +175,23 @@ export default function LoginPage() {
               {loading ? (
                 <>
                   <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                  Connexion...
+                  {isLogin ? 'Connexion...' : 'Création...'}
                 </>
               ) : (
-                'Se connecter'
+                isLogin ? 'Se connecter' : 'Créer mon compte'
               )}
             </button>
           </form>
+
+          {/* Info box for new accounts */}
+          {!isLogin && (
+            <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <p className="text-xs text-amber-700">
+                <strong>Note :</strong> Les nouveaux comptes ont le rôle <strong>Opérateur</strong> par défaut.
+                Un administrateur peut modifier votre rôle dans le panneau d&apos;administration.
+              </p>
+            </div>
+          )}
 
           <p className="text-xs text-gray-400 text-center mt-6">
             TAFIMES MES v1.0 – Système de Gestion de Production

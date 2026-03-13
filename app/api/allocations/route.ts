@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
 
     // Check if all recipe requirements are met
     const { data: recipe, error: recipeError } = await supabase
-      .from('product_recipes')
+      .from('recipes')
       .select('raw_material_id, quantity_required')
       .eq('product_id', order.product_id)
 

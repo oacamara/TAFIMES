@@ -21,6 +21,16 @@ interface Role {
   name: string
 }
 
+interface RecipeRow {
+  id: string
+  product_id: string
+  raw_material_id: string
+  quantity_required: number
+  unit: string
+  products: { id: string; name: string; code: string; unit: string } | null
+  raw_materials: { id: string; name: string; code: string; unit: string } | null
+}
+
 interface Props {
   products: Product[]
   rawMaterials: RawMaterial[]
@@ -28,11 +38,12 @@ interface Props {
   users: Profile[]
   roles: Role[]
   rawMaterialLots: (RawMaterialLot & { raw_materials: { name: string } | null })[]
+  recipes: RecipeRow[]
 }
 
-type Tab = 'products' | 'materials' | 'lines' | 'lots' | 'users'
+type Tab = 'products' | 'materials' | 'lines' | 'lots' | 'recipes' | 'users'
 
-export default function AdminTabs({ products, rawMaterials, lines, users, roles, rawMaterialLots }: Props) {
+export default function AdminTabs({ products, rawMaterials, lines, users, roles, rawMaterialLots, recipes }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('products')
   const router = useRouter()
 
@@ -41,6 +52,7 @@ export default function AdminTabs({ products, rawMaterials, lines, users, roles,
     { key: 'materials', label: 'Matières premières' },
     { key: 'lines', label: 'Lignes production' },
     { key: 'lots', label: 'Lots matières' },
+    { key: 'recipes', label: 'Recettes' },
     { key: 'users', label: 'Utilisateurs' },
   ]
 
@@ -67,6 +79,7 @@ export default function AdminTabs({ products, rawMaterials, lines, users, roles,
       {activeTab === 'materials' && <MaterialsTab materials={rawMaterials} onRefresh={() => router.refresh()} />}
       {activeTab === 'lines' && <LinesTab lines={lines} onRefresh={() => router.refresh()} />}
       {activeTab === 'lots' && <LotsTab lots={rawMaterialLots} materials={rawMaterials} onRefresh={() => router.refresh()} />}
+      {activeTab === 'recipes' && <RecipesTab recipes={recipes} products={products} rawMaterials={rawMaterials} onRefresh={() => router.refresh()} />}
       {activeTab === 'users' && <UsersTab users={users} roles={roles} onRefresh={() => router.refresh()} />}
     </div>
   )
@@ -401,6 +414,132 @@ function LotsTab({ lots, materials, onRefresh }: {
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Recipes Tab ──────────────────────────────────────────────────────────────
+function RecipesTab({ recipes, products, rawMaterials, onRefresh }: {
+  recipes: RecipeRow[]
+  products: Product[]
+  rawMaterials: RawMaterial[]
+  onRefresh: () => void
+}) {
+  const [form, setForm] = useState({ product_id: '', raw_material_id: '', quantity_required: '', unit: 'kg' })
+  const [loading, setLoading] = useState(false)
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    const res = await fetch('/api/recipes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        product_id: form.product_id,
+        raw_material_id: form.raw_material_id,
+        quantity_required: parseFloat(form.quantity_required),
+        unit: form.unit,
+      }),
+    })
+    setLoading(false)
+    if (!res.ok) {
+      const data = await res.json()
+      toast.error(data.error)
+      return
+    }
+    toast.success('Ingrédient ajouté')
+    setForm({ product_id: '', raw_material_id: '', quantity_required: '', unit: 'kg' })
+    onRefresh()
+  }
+
+  async function handleDelete(id: string, name: string) {
+    if (!confirm(`Supprimer "${name}" de la recette ?`)) return
+    const res = await fetch(`/api/recipes/${id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const data = await res.json()
+      toast.error(data.error)
+      return
+    }
+    toast.success('Ingrédient supprimé')
+    onRefresh()
+  }
+
+  return (
+    <div className="space-y-4">
+      <form onSubmit={handleCreate} className="bg-white rounded-xl border border-gray-200 p-4">
+        <p className="text-sm font-medium text-gray-700 mb-3">Ajouter un ingrédient à une recette</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <select required value={form.product_id} onChange={(e) => setForm(p => ({ ...p, product_id: e.target.value }))}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none">
+            <option value="">Produit fini…</option>
+            {products.map((p) => (
+              <option key={p.id} value={p.id}>[{p.code}] {p.name}</option>
+            ))}
+          </select>
+          <select required value={form.raw_material_id} onChange={(e) => setForm(p => ({ ...p, raw_material_id: e.target.value }))}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none">
+            <option value="">Matière première…</option>
+            {rawMaterials.map((m) => (
+              <option key={m.id} value={m.id}>[{m.code}] {m.name}</option>
+            ))}
+          </select>
+          <div className="flex gap-2">
+            <input required type="number" min="0.0001" step="0.0001" value={form.quantity_required}
+              onChange={(e) => setForm(p => ({ ...p, quantity_required: e.target.value }))}
+              placeholder="Quantité" className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+            <select value={form.unit} onChange={(e) => setForm(p => ({ ...p, unit: e.target.value }))}
+              className="px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none">
+              {['kg', 'g', 'L', 'mL', 'pièce', 'unité'].map((u) => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+          </div>
+          <button type="submit" disabled={loading}
+            className="bg-amber-700 hover:bg-amber-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1">
+            <Plus className="w-4 h-4" />
+            {loading ? 'Ajout…' : 'Ajouter'}
+          </button>
+        </div>
+      </form>
+
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="text-left px-4 py-3 text-xs text-gray-500">Produit fini</th>
+              <th className="text-left px-4 py-3 text-xs text-gray-500">Matière première</th>
+              <th className="text-right px-4 py-3 text-xs text-gray-500">Qté / unité produit</th>
+              <th className="text-left px-4 py-3 text-xs text-gray-500">Unité</th>
+              <th className="px-4 py-3"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {recipes.map((r) => (
+              <tr key={r.id} className="hover:bg-gray-50">
+                <td className="px-4 py-2.5">
+                  <span className="font-medium text-gray-900">{r.products?.name}</span>
+                  <span className="ml-1 font-mono text-xs text-gray-400">{r.products?.code}</span>
+                </td>
+                <td className="px-4 py-2.5">
+                  <span className="text-gray-800">{r.raw_materials?.name}</span>
+                  <span className="ml-1 font-mono text-xs text-gray-400">{r.raw_materials?.code}</span>
+                </td>
+                <td className="px-4 py-2.5 text-right text-gray-900">{formatNumber(r.quantity_required)}</td>
+                <td className="px-4 py-2.5 text-gray-500">{r.unit}</td>
+                <td className="px-4 py-2.5 text-right">
+                  <button onClick={() => handleDelete(r.id, r.raw_materials?.name ?? '')}
+                    className="text-red-400 hover:text-red-600">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {recipes.length === 0 && (
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">Aucune recette enregistrée</td></tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   )

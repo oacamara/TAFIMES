@@ -30,6 +30,7 @@ export default async function AdminPage() {
     { data: users },
     { data: roles },
     { data: rawMaterialLots },
+    { data: recipes },
   ] = await Promise.all([
     supabase.from('products').select('*').order('name'),
     supabase.from('raw_materials').select('*').order('name'),
@@ -37,6 +38,7 @@ export default async function AdminPage() {
     supabase.from('profiles').select('*, roles(name)').order('name'),
     supabase.from('roles').select('*').order('name'),
     supabase.from('raw_material_lots').select('*, raw_materials(name)').order('created_at', { ascending: false }).limit(50),
+    supabase.from('recipes').select('*, products(id, name, code, unit), raw_materials(id, name, code, unit)').order('created_at', { ascending: false }),
   ])
 
   return (
@@ -52,6 +54,7 @@ export default async function AdminPage() {
         users={users || []}
         roles={roles || []}
         rawMaterialLots={rawMaterialLots || []}
+        recipes={recipes || []}
       />
     </div>
   )

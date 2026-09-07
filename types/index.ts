@@ -83,3 +83,48 @@ export type DashboardStats = {
   todayLosses: number
   avgYield: number
 }
+
+// ============================================================
+// Messagerie interne
+// ============================================================
+
+export type Views<T extends keyof Database['public']['Views']> =
+  Database['public']['Views'][T]['Row']
+
+export type Conversation = Tables<'conversations'>
+export type ConversationMember = Tables<'conversation_members'>
+export type Message = Tables<'messages'>
+export type MessageAttachment = Tables<'message_attachments'>
+export type PushSubscriptionRow = Tables<'push_subscriptions'>
+export type DirectoryUser = Views<'user_directory'>
+
+export type ConversationType = Conversation['type']
+export type ConversationVisibility = Conversation['visibility']
+export type MemberRole = ConversationMember['role']
+
+/** Conversation telle qu'affichee dans la sidebar. */
+export type ConversationListItem = Conversation & {
+  unreadCount: number
+  /** DM uniquement : l'interlocuteur. */
+  peer: DirectoryUser | null
+}
+
+/** Message pret a l'affichage : l'auteur est resolu depuis l'annuaire en
+ *  memoire, car Realtime ne livre que la ligne brute inseree (aucune jointure). */
+export type MessageWithSender = Message & {
+  sender: DirectoryUser | null
+  attachments: MessageAttachment[]
+}
+
+/** Statut de presence, ephemere : porte par Realtime Presence, jamais en base. */
+export type PresenceStatus = 'online' | 'away' | 'offline'
+
+export const PRESENCE_LABELS: Record<PresenceStatus, string> = {
+  online: 'En ligne',
+  away: 'Absent',
+  offline: 'Hors ligne',
+}
+
+export const MESSAGE_PAGE_SIZE = 50
+export const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024
+export const ATTACHMENTS_BUCKET = 'message-attachments'
